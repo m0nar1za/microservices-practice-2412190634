@@ -8,3 +8,9 @@
 - 目标用户：居民、团长、供应商、管理员
 - 优先业务场景：下单-支付-分拣-核销
 - 两个核心模型：User（用户）、Order（订单）
+
+## 工程创建与运行结果
+- 已创建 `monolith/` Maven 工程，包含 pom.xml、application.yml、启动类、HelloController。
+- 启动命令：`./mvnw spring-boot:run`
+- `/api/hello` 响应：`Hello, 社区生鲜团购/配送系统已启动！`
+- `/actuator/health` 响应：`{"status":"UP"}`
