@@ -60,3 +60,20 @@ sequenceDiagram
 
 ## 后续可扩展方向
 后续将围绕微服务架构进行演进，包括：基于 JWT 的认证服务、按业务边界拆分微服务、基于消息队列（RabbitMQ）的异步通知与事务最终一致性、分布式链路追踪（Micrometer + Zipkin）、Prometheus 监控告警以及基于 Docker Compose 的容器化部署。
+
+## 运行说明
+
+### 环境要求
+- Java 25
+- Maven Wrapper（无需全局安装 Maven）
+
+### 启动与测试命令（进入 `monolith/` 目录执行）
+- 启动测试：`./mvnw test`
+- 启动应用：`./mvnw spring-boot:run`
+
+### 接口访问地址
+- 问候接口：http://localhost:8080/api/hello
+- 健康检查：http://localhost:8080/actuator/health
+
+### 当前未实现的业务能力
+暂未实现业务数据库建模、完整 REST API（用户/商品/订单）、Service 层与 Repository 层。

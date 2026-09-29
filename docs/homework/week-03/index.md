@@ -19,3 +19,6 @@
 - 测试命令：`./mvnw test`
 - 测试类：`MonolithApplicationTests`
 - 结果：BUILD SUCCESS，Spring 应用上下文加载正常。
+
+## 本周完成总结
+本周完成了 Spring Boot 单体工程的创建与运行验证。工程位于 `monolith/` 目录，包名符合规范。实现了 HelloController 问候接口与 Actuator 健康检查，编写并运行了 @SpringBootTest 上下文加载测试。根目录 README 已补充完整的运行说明。后续将着手进行业务建模，实现基础的用户与商品管理接口。
