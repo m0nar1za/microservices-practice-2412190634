@@ -14,3 +14,8 @@
 - 启动命令：`./mvnw spring-boot:run`
 - `/api/hello` 响应：`Hello, 社区生鲜团购/配送系统已启动！`
 - `/actuator/health` 响应：`{"status":"UP"}`
+
+## 启动测试结果
+- 测试命令：`./mvnw test`
+- 测试类：`MonolithApplicationTests`
+- 结果：BUILD SUCCESS，Spring 应用上下文加载正常。
