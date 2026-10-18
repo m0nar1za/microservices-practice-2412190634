@@ -77,3 +77,18 @@ sequenceDiagram
 
 ### 当前未实现的业务能力
 暂未实现业务数据库建模、完整 REST API（用户/商品/订单）、Service 层与 Repository 层。
+
+## 本地 MySQL 配置说明
+
+1. 在 WSL 中安装 MySQL 并启动服务。
+2. 登录 MySQL 并创建数据库：`CREATE DATABASE grocery_db;`
+3. 修改 `monolith/src/main/resources/application.yml` 中的数据库密码，确保与本地一致（默认为 root）。
+4. 启动应用时，JPA 将自动建表（`ddl-auto: update`）。
+
+### Week 04 API 验证示例
+```bash
+# 创建商品
+curl -X POST http://localhost:8080/api/products -H "Content-Type: application/json" -d '{"name":"有机西红柿","price":8.5,"stock":50}'
+
+# 创建订单
+curl -X POST http://localhost:8080/api/orders -H "Content-Type: application/json" -d '{"productId":1,"quantity":5}'
