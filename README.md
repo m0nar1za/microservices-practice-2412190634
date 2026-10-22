@@ -92,3 +92,17 @@ curl -X POST http://localhost:8080/api/products -H "Content-Type: application/js
 
 # 创建订单
 curl -X POST http://localhost:8080/api/orders -H "Content-Type: application/json" -d '{"productId":1,"quantity":5}'
+
+## Docker 容器化启动指南
+
+1. 复制环境变量模板：`cp .env.example .env`，并修改其中密码。
+2. 在仓库根目录执行构建与启动：`docker compose up -d --build`
+3. 查看容器状态：`docker compose ps`
+4. 停止服务并保留数据：`docker compose down`
+
+### API 测试命令
+```bash
+# 创建商品
+curl -X POST http://localhost:8080/api/products -H "Content-Type: application/json" -d '{"name":"测试生鲜","price":10.0,"stock":100}'
+# 查询商品
+curl http://localhost:8080/api/products
