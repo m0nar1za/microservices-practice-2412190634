@@ -92,6 +92,7 @@ curl -X POST http://localhost:8080/api/products -H "Content-Type: application/js
 
 # 创建订单
 curl -X POST http://localhost:8080/api/orders -H "Content-Type: application/json" -d '{"productId":1,"quantity":5}'
+```
 
 ## Docker 容器化启动指南
 
@@ -106,3 +107,50 @@ curl -X POST http://localhost:8080/api/orders -H "Content-Type: application/json
 curl -X POST http://localhost:8080/api/products -H "Content-Type: application/json" -d '{"name":"测试生鲜","price":10.0,"stock":100}'
 # 查询商品
 curl http://localhost:8080/api/products
+```
+
+## Week 06 微服务拆分说明
+
+本项目已完成微服务拆分，所有微服务的基础包名统一使用 `com.zjgsu.ghy`，业务代码分别存放在对应子包中（如 `com.zjgsu.ghy.controller`、`com.zjgsu.ghy.service`）。系统拆分为三个独立服务，各自拥有独立数据库：
+- `user-service` (端口 8081)
+- `product-service` (端口 8082)
+- `order-service` (端口 8083)
+
+### 1. 启动命令
+在仓库根目录执行，一键构建并启动所有微服务与数据库：
+```bash
+docker compose up -d --build
+```
+
+### 2. 健康检查
+每个微服务均配置了 Actuator 健康接口。您可以直接通过浏览器/curl 访问，或在根目录运行验证脚本：
+```bash
+
+# 运行自动化检查脚本（必须从仓库根目录运行）
+./scripts/smoke-test.sh
+
+# 或手动检查各服务健康状态（需返回 {"status":"UP"}）
+curl -f http://localhost:8081/actuator/health
+curl -f http://localhost:8082/actuator/health
+curl -f http://localhost:8083/actuator/health
+```
+
+### 3. 测试命令
+本项目在每个微服务中均编写了基于 H2 内存数据库的上下文加载测试。请分别进入对应服务的目录下执行测试：
+```bash
+cd services/user-service && ./mvnw test && cd ../..
+cd services/product-service && ./mvnw test && cd ../..
+cd services/order-service && ./mvnw test && cd ../..
+```
+
+### 4. 业务 API 请求示例（可复制执行）
+```bash
+# 示例 1：在商品服务创建商品（库存 10）
+curl -i -X POST http://localhost:8082/api/products -H "Content-Type: application/json" -d '{"name":"大白菜","price":5.0,"stock":10}'
+
+# 示例 2：在订单服务下单（触发跨服务 HTTP 调用扣减库存）
+curl -i -X POST http://localhost:8083/api/orders -H "Content-Type: application/json" -d '{"userId":1,"productId":1,"quantity":2}'
+
+# 示例 3：在订单服务下单（库存不足，触发异常处理，返回 400）
+curl -i -X POST http://localhost:8083/api/orders -H "Content-Type: application/json" -d '{"userId":1,"productId":1,"quantity":100}'
+```

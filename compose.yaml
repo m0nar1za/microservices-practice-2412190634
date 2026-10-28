@@ -1,41 +1,94 @@
+name: grocery-microservices
+
 services:
-  mysql:
+  user-db:
     image: mysql:8.4.11
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: grocery_db
-      MYSQL_USER: course
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: user_db
     volumes:
-      - mysql-data:/var/lib/mysql
+      - user-data:/var/lib/mysql
     networks:
-      - grocery-network
+      - grocery-net
     healthcheck:
-      test: ["CMD-SHELL", "mysql --protocol=TCP -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e 'SELECT 1'"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
-      timeout: 5s
       retries: 20
-      start_period: 30s
 
-  app:
-    image: grocery-monolith:week05
-    build: 
-      context: ./monolith
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+  product-db:
+    image: mysql:8.4.11
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/grocery_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: course
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: product_db
+    volumes:
+      - product-data:/var/lib/mysql
+    networks:
+      - grocery-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      retries: 20
+
+  order-db:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: order_db
+    volumes:
+      - order-data:/var/lib/mysql
+    networks:
+      - grocery-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      retries: 20
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:mysql://user-db:3306/user_db
+      DB_PASSWORD: ${USER_DB_PASSWORD}
     depends_on:
-      mysql:
+      user-db:
         condition: service_healthy
     networks:
-      - grocery-network
+      - grocery-net
+
+  product-service:
+    build: ./services/product-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:mysql://product-db:3306/product_db
+      DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+    depends_on:
+      product-db:
+        condition: service_healthy
+    networks:
+      - grocery-net
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:mysql://order-db:3306/order_db
+      DB_PASSWORD: ${ORDER_DB_PASSWORD}
+      PRODUCT_SERVICE_URL: http://product-service:8082
+    depends_on:
+      order-db:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - grocery-net
 
 volumes:
-  mysql-data:
+  user-data:
+  product-data:
+  order-data:
 
 networks:
-  grocery-network:
+  grocery-net:
