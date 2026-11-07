@@ -1,4 +1,8 @@
 spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false # 测试时关闭真实 Nacos 注册
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver

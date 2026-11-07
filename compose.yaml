@@ -1,6 +1,23 @@
 name: grocery-microservices
 
 services:
+  nacos:
+    image: nacos/nacos-server:v3.2.4
+    environment:
+      - MODE=standalone
+      - NACOS_AUTH_ENABLE=true
+      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN}
+      - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY}
+      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE}
+    ports:
+      - "127.0.0.1:18080:8080"
+      - "127.0.0.1:8848:8848"
+      - "127.0.0.1:9848:9848"
+    volumes:
+      - nacos-data:/home/nacos/data
+    networks:
+      - grocery-net
+
   user-db:
     image: mysql:8.4.11
     environment:
@@ -49,10 +66,16 @@ services:
       - "8081:8081"
     environment:
       DB_URL: jdbc:mysql://user-db:3306/user_db
+      DB_USER: root
       DB_PASSWORD: ${USER_DB_PASSWORD}
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_USERNAME: nacos
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
     depends_on:
       user-db:
         condition: service_healthy
+      nacos:
+        condition: service_started
     networks:
       - grocery-net
 
@@ -62,10 +85,16 @@ services:
       - "8082:8082"
     environment:
       DB_URL: jdbc:mysql://product-db:3306/product_db
+      DB_USER: root
       DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_USERNAME: nacos
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
     depends_on:
       product-db:
         condition: service_healthy
+      nacos:
+        condition: service_started
     networks:
       - grocery-net
 
@@ -75,17 +104,22 @@ services:
       - "8083:8083"
     environment:
       DB_URL: jdbc:mysql://order-db:3306/order_db
+      DB_USER: root
       DB_PASSWORD: ${ORDER_DB_PASSWORD}
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_USERNAME: nacos
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
       PRODUCT_SERVICE_URL: http://product-service:8082
     depends_on:
       order-db:
         condition: service_healthy
-      product-service:
+      nacos:
         condition: service_started
     networks:
       - grocery-net
 
 volumes:
+  nacos-data:
   user-data:
   product-data:
   order-data:

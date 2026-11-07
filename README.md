@@ -154,3 +154,24 @@ curl -i -X POST http://localhost:8083/api/orders -H "Content-Type: application/j
 # 示例 3：在订单服务下单（库存不足，触发异常处理，返回 400）
 curl -i -X POST http://localhost:8083/api/orders -H "Content-Type: application/json" -d '{"userId":1,"productId":1,"quantity":100}'
 ```
+
+## Week 07 Nacos 服务发现接入
+
+### 启动命令
+在根目录执行：
+docker compose up -d
+系统会自动启动 MySQL、Nacos 以及三个微服务。
+
+### 访问 Nacos 控制台
+地址：http://127.0.0.1:18080
+用户名/密码：nacos / ${NACOS_PASSWORD} （请在 .env 中配置）
+
+### 脚本验证
+在根目录运行：
+bash scripts/smoke-test.sh
+该脚本会检查 Nacos 及所有微服务的 Actuator 健康状态，若有异常会返回非零状态。
+
+### 单元测试
+进入对应微服务目录执行测试（测试已关闭 Nacos 注册，使用 H2 与 Mock）：
+cd services/order-service
+./mvnw test
