@@ -109,7 +109,6 @@ services:
       NACOS_SERVER_ADDR: nacos:8848
       NACOS_USERNAME: nacos
       NACOS_PASSWORD: ${NACOS_PASSWORD}
-      PRODUCT_SERVICE_URL: http://product-service:8082
     depends_on:
       order-db:
         condition: service_healthy

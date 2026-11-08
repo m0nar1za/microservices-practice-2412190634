@@ -1,4 +1,5 @@
 package com.zjgsu.ghy;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -8,9 +9,11 @@ import org.springframework.boot.test.context.SpringBootTest;
     "spring.datasource.username=sa",
     "spring.datasource.password=",
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "services.product-url=http://localhost:8082" // 防止 @Value 找不到
+    "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-class OrderServiceApplicationTests { 
-    @Test void contextLoads() {} 
+class OrderServiceApplicationTests {
+
+    @Test
+    void contextLoads() {
+    }
 }

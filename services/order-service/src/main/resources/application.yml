@@ -15,5 +15,3 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa: { hibernate: { ddl-auto: update }, show-sql: true }
 management: { endpoints: { web: { exposure: { include: health,info } } } }
-services:
-  product-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}

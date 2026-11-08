@@ -11,8 +11,8 @@
     <groupId>com.zjgsu</groupId>
     <artifactId>user-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>monolith</name>
-    <description>Community Fresh Grocery Monolith</description>
+    <name>user-service</name>
+    <description>Community Fresh Grocery User Service</description>
     <properties>
         <java.version>25</java.version>
     </properties>
