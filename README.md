@@ -1,177 +1,264 @@
-# 微服务实践课程仓库
-
-- **课程**：微服务架构与开发
-- **姓名**：郭浩宇
-- **学号**：2412190634
-- **用途**：本仓库用于存储微服务课程的所有作业、实验代码、文档和项目资料。
-
 # 社区生鲜团购/配送系统
 
+> 课程：微服务开发与实践
+> 姓名：郭浩宇
+> 学号：2412190634
+> 仓库：microservices-practice-2412190634
+
 ## 项目简介
-本项目是一个面向城市社区的线上生鲜团购平台，连接供应商、团长与社区居民，提供从商品浏览、在线下单、支付、分拣到自提核销的全链路服务。
+
+本项目是一个面向城市社区的线上生鲜团购平台，连接供应商、团长与社区居民，覆盖商品浏览、下单、库存扣减、订单生成等核心链路。当前版本按微服务架构组织：用户、商品、订单三个独立服务，各自拥有独立数据库，通过 Nacos 完成服务注册与发现。
 
 ## 业务背景
-随着城市生活节奏加快，社区居民对生鲜食材的品质和配送时效提出了更高要求。传统电商配送成本高、损耗大，而社区团购通过“预售+自提/次日达”的模式，有效降低了履约成本。
+
+社区居民对生鲜品质和配送时效的要求不断提高，传统电商配送成本高、损耗大；“预售 + 自提/次日达”的社区团购模式可以有效降低履约成本。项目选择该场景，是因为业务闭环完整、角色多，适合从单体逐步演进到微服务。
 
 ## 目标用户
-- **居民（买家）**：浏览生鲜商品，参与团购，在线支付，凭提货码自提。
-- **团长（自提点负责人）**：管理本团订单，分拣商品，核销提货码，申请佣金。
-- **供应商**：管理商品上下架，更新库存，处理批量供货订单。
-- **平台管理员**：审核资质，处理售后，查看数据报表。
 
-## 用户角色及需求
-- **居民（买家）**：需要便捷地浏览商品、参与团购、在线支付、查看订单状态、凭码自提和评价。
-- **团长**：需要管理自提点、查看本团订单、分拣商品、核销提货码、查看并提现佣金。
-- **供应商**：需要管理商品、维护库存、处理批量供货订单。
-- **平台管理员**：需要审核资质、管理分类、处理售后、查看交易数据和佣金结算报表。
+- **居民（买家）**：浏览商品、参与团购、下单、凭提货码自提。
+- **团长**：管理自提点、分拣商品、核销提货码、佣金结算。
+- **供应商**：管理商品、维护库存、处理供货订单。
+- **平台管理员**：审核资质、处理售后、查看报表。
 
-## 功能模块划分
-| 模块 | 包含功能 |
-| :--- | :--- |
-| 认证与权限 | 多角色注册、登录、JWT 鉴权、细粒度权限控制 |
-| 商品与库存 | 商品管理、分类管理、库存扣减、商品审核 |
-| 团购与订单 | 购物车、订单创建、状态流转（待支付/待发货/待自提/已完成） |
-| 支付与结算 | 模拟支付、交易流水、佣金计算与结算 |
-| 核销与评价 | 提货码生成、团长端扫码核销、买家评价 |
-| 消息通知 | 下单通知、提货提醒、状态变更通知 |
+> 当前代码实现了“商品 + 订单 + 库存扣减”的最小闭环；支付、核销、认证等为后续演进。
 
-## 核心业务流程
+## 系统架构
+
+| 服务 | 端口 | 数据库 | 职责 |
+|---|---|---|---|
+| user-service | 8081 | user_db | 用户信息 |
+| product-service | 8082 | product_db | 商品与库存 |
+| order-service | 8083 | order_db | 订单创建与跨服务编排 |
+| Nacos | 18080（控制台）/ 8848（API）/ 9848（gRPC） | — | 注册中心 |
+
 ```mermaid
-sequenceDiagram
-    participant 居民
-    participant 平台
-    participant 供应商
-    participant 团长
-    
-    居民->>平台: 浏览商品并下单支付
-    平台->>供应商: 推送订单通知
-    供应商->>平台: 确认供货并发货至自提点
-    平台->>团长: 通知到货分拣
-    团长->>平台: 分拣完成，发起提货通知
-    平台->>居民: 发送提货码
-    居民->>团长: 出示提货码
-    团长->>平台: 扫码核销
-    平台->>居民: 订单完成，邀请评价
+graph TD
+    Client[客户端] --> User[user-service :8081]
+    Client --> Product[product-service :8082]
+    Client --> Order[order-service :8083]
+
+    Order -->|DiscoveryClient 查实例 + RestTemplate| Product
+
+    User --> UserDB[(user_db)]
+    Product --> ProductDB[(product_db)]
+    Order --> OrderDB[(order_db)]
+
+    User -.注册/心跳.-> Nacos[Nacos :8848]
+    Product -.注册/心跳.-> Nacos
+    Order -.注册/心跳.-> Nacos
 ```
 
-## 当前项目范围和暂不实现的内容
-当前范围：聚焦于核心交易闭环（用户、商品、订单、支付、核销）的初始版本。
-暂不实现：复杂的推荐算法、第三方真实支付接口对接、骑手实时轨迹追踪、高并发秒杀场景。
+## 技术栈
 
-## 后续可扩展方向
-后续将围绕微服务架构进行演进，包括：基于 JWT 的认证服务、按业务边界拆分微服务、基于消息队列（RabbitMQ）的异步通知与事务最终一致性、分布式链路追踪（Micrometer + Zipkin）、Prometheus 监控告警以及基于 Docker Compose 的容器化部署。
-
-## 运行说明
-
-### 环境要求
 - Java 25
-- Maven Wrapper（无需全局安装 Maven）
+- Spring Boot 4.0.0
+- Spring Data JPA + MySQL 8.4.11
+- Spring Cloud Alibaba Nacos Discovery 2025.1.0.0
+- Spring Boot Actuator
+- Docker / Docker Compose
+- JUnit 5 + Mockito + H2
 
-### 启动与测试命令（进入 `monolith/` 目录执行）
-- 启动测试：`./mvnw test`
-- 启动应用：`./mvnw spring-boot:run`
+## 仓库结构
 
-### 接口访问地址
-- 问候接口：http://localhost:8080/api/hello
-- 健康检查：http://localhost:8080/actuator/health
-
-### 当前未实现的业务能力
-暂未实现业务数据库建模、完整 REST API（用户/商品/订单）、Service 层与 Repository 层。
-
-## 本地 MySQL 配置说明
-
-1. 在 WSL 中安装 MySQL 并启动服务。
-2. 登录 MySQL 并创建数据库：`CREATE DATABASE grocery_db;`
-3. 修改 `monolith/src/main/resources/application.yml` 中的数据库密码，确保与本地一致（默认为 root）。
-4. 启动应用时，JPA 将自动建表（`ddl-auto: update`）。
-
-### Week 04 API 验证示例
-```bash
-# 创建商品
-curl -X POST http://localhost:8080/api/products -H "Content-Type: application/json" -d '{"name":"有机西红柿","price":8.5,"stock":50}'
-
-# 创建订单
-curl -X POST http://localhost:8080/api/orders -H "Content-Type: application/json" -d '{"productId":1,"quantity":5}'
+```text
+.
+├── monolith/                 # 第 3–5 周的单体基线，保留用于对比
+├── services/
+│   ├── user-service/         # 8081，user_db
+│   ├── product-service/      # 8082，product_db
+│   └── order-service/        # 8083，order_db
+├── docs/                     # 每周作业记录与设计文档
+├── scripts/
+│   ├── init-env.sh           # 生成 .env
+│   └── smoke-test.sh         # 冒烟验证
+├── compose.yaml
+└── README.md
 ```
 
-## Docker 容器化启动指南
+## 快速开始
 
-1. 复制环境变量模板：`cp .env.example .env`，并修改其中密码。
-2. 在仓库根目录执行构建与启动：`docker compose up -d --build`
-3. 查看容器状态：`docker compose ps`
-4. 停止服务并保留数据：`docker compose down`
+### 1. 环境要求
 
-### API 测试命令
+- Java 25
+- Docker Desktop（含 Docker Compose）
+- Maven Wrapper（仓库已自带，无需全局 Maven）
+
+### 2. 生成环境变量
+
 ```bash
-# 创建商品
-curl -X POST http://localhost:8080/api/products -H "Content-Type: application/json" -d '{"name":"测试生鲜","price":10.0,"stock":100}'
-# 查询商品
-curl http://localhost:8080/api/products
+bash scripts/init-env.sh
 ```
 
-## Week 06 微服务拆分说明
+脚本会生成 `.env`，包含随机 MySQL 密码和合法的 Nacos Base64 Token；`.env` 已被 `.gitignore` 忽略。
 
-本项目已完成微服务拆分，所有微服务的基础包名统一使用 `com.zjgsu.ghy`，业务代码分别存放在对应子包中（如 `com.zjgsu.ghy.controller`、`com.zjgsu.ghy.service`）。系统拆分为三个独立服务，各自拥有独立数据库：
-- `user-service` (端口 8081)
-- `product-service` (端口 8082)
-- `order-service` (端口 8083)
+### 3. 启动
 
-### 1. 启动命令
-在仓库根目录执行，一键构建并启动所有微服务与数据库：
 ```bash
 docker compose up -d --build
+docker compose ps
 ```
 
-### 2. 健康检查
-每个微服务均配置了 Actuator 健康接口。您可以直接通过浏览器/curl 访问，或在根目录运行验证脚本：
+首次启动需要拉取镜像并构建三个服务，时间取决于网络。
+
+### 4. 健康检查
+
 ```bash
-
-# 运行自动化检查脚本（必须从仓库根目录运行）
-./scripts/smoke-test.sh
-
-# 或手动检查各服务健康状态（需返回 {"status":"UP"}）
-curl -f http://localhost:8081/actuator/health
-curl -f http://localhost:8082/actuator/health
-curl -f http://localhost:8083/actuator/health
-```
-
-### 3. 测试命令
-本项目在每个微服务中均编写了基于 H2 内存数据库的上下文加载测试。请分别进入对应服务的目录下执行测试：
-```bash
-cd services/user-service && ./mvnw test && cd ../..
-cd services/product-service && ./mvnw test && cd ../..
-cd services/order-service && ./mvnw test && cd ../..
-```
-
-### 4. 业务 API 请求示例（可复制执行）
-```bash
-# 示例 1：在商品服务创建商品（库存 10）
-curl -i -X POST http://localhost:8082/api/products -H "Content-Type: application/json" -d '{"name":"大白菜","price":5.0,"stock":10}'
-
-# 示例 2：在订单服务下单（触发跨服务 HTTP 调用扣减库存）
-curl -i -X POST http://localhost:8083/api/orders -H "Content-Type: application/json" -d '{"userId":1,"productId":1,"quantity":2}'
-
-# 示例 3：在订单服务下单（库存不足，触发异常处理，返回 400）
-curl -i -X POST http://localhost:8083/api/orders -H "Content-Type: application/json" -d '{"userId":1,"productId":1,"quantity":100}'
-```
-
-## Week 07 Nacos 服务发现接入
-
-### 启动命令
-在根目录执行：
-docker compose up -d
-系统会自动启动 MySQL、Nacos 以及三个微服务。
-
-### 访问 Nacos 控制台
-地址：http://127.0.0.1:18080
-用户名/密码：nacos / ${NACOS_PASSWORD} （请在 .env 中配置）
-
-### 脚本验证
-在根目录运行：
+curl -s http://localhost:8081/actuator/health
+curl -s http://localhost:8082/actuator/health
+curl -s http://localhost:8083/actuator/health
 bash scripts/smoke-test.sh
-该脚本会检查 Nacos 及所有微服务的 Actuator 健康状态，若有异常会返回非零状态。
+```
 
-### 单元测试
-进入对应微服务目录执行测试（测试已关闭 Nacos 注册，使用 H2 与 Mock）：
-cd services/order-service
-./mvnw test
+预期三个接口返回 `{"status":"UP"}`，脚本输出“所有检查通过”。
+
+### 5. Nacos 控制台
+
+http://127.0.0.1:18080
+账号 `nacos`，密码见 `.env` 的 `NACOS_PASSWORD`。服务列表应看到三个服务，分组 `PERSONAL_GROUP`，健康实例数各 1。
+
+## 核心业务流程
+
+1. 客户端 `POST /api/orders`，请求体包含 `userId`、`productId`、`quantity`。
+2. order-service 通过 `DiscoveryClient.getInstances("product-service")` 获取当前实例。
+3. 实例列表为空 → 返回 `503`。
+4. 取实例 URI，`PUT /api/products/{id}/deduct?quantity=...` 调用商品服务。
+5. 商品不存在 → `404`；库存不足 → `409`；扣减成功 → `200`。
+6. order-service 保存订单，返回 `201`。
+
+## API 示例
+
+### 创建商品
+
+```bash
+curl -s -X POST http://localhost:8082/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"有机西红柿","price":8.5,"stock":50}'
+```
+
+### 创建订单
+
+把 `productId` 换成上一步返回的 `id`：
+
+```bash
+curl -i -X POST http://localhost:8083/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"productId":1,"quantity":2}'
+```
+
+预期 `201 Created`。
+
+### 错误响应
+
+```bash
+# 404：商品不存在
+curl -i -X POST http://localhost:8083/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"productId":999999,"quantity":1}'
+
+# 409：库存不足
+curl -i -X POST http://localhost:8083/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"productId":1,"quantity":100}'
+
+# 503：停掉 product-service，等 Nacos 摘除实例后再下单
+docker compose stop product-service
+sleep 15
+curl -i -X POST http://localhost:8083/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"productId":1,"quantity":2}'
+docker compose start product-service
+```
+
+## 测试
+
+每个服务独立测试，使用 H2 内存数据库，测试配置关闭 Nacos 注册：
+
+```bash
+cd services/order-service && ./mvnw test
+cd ../user-service && ./mvnw test
+cd ../product-service && ./mvnw test
+```
+
+覆盖点：
+
+- 上下文加载
+- 订单库存校验
+- `DiscoveryClient` 实例列表为空 → 503
+
+## 设计说明
+
+### 为什么先单体再拆分
+
+单体开发快、事务简单、调试成本低，先把业务边界跑清楚；一上来拆容易变成“分布式单体”。`monolith/` 保留为第 3–5 周的基线，用于对比演进。
+
+### 服务边界与数据归属
+
+- user-service：账号、角色、用户资料。
+- product-service：商品、价格、库存。
+- order-service：订单创建与交易编排。
+
+订单只保存 `userId`、`productId` 逻辑引用，不跨库建外键；跨服务一致性通过后续的消息/补偿机制演进。
+
+### 服务发现
+
+order-service 每次下单通过 `DiscoveryClient.getInstances("product-service")` 获取实例列表，用实例 URI 调用商品服务的原业务路径；列表为空返回 503。服务地址、数据库连接、Nacos 凭据都通过环境变量注入。
+
+## 当前实现范围
+
+| 能力 | 状态 |
+|---|---|
+| 三服务拆分、独立数据库 | 已完成 |
+| Nacos 注册与发现 | 已完成 |
+| 下单扣库存、404/409/503 | 已完成 |
+| RestTemplate 连接/读取超时 | 已完成 |
+| Docker Compose 一键启动 | 已完成 |
+| 冒烟脚本、H2 测试 | 已完成 |
+| 客户端负载均衡 | 未实现 |
+| 分布式事务/最终一致性 | 未实现 |
+| 认证/JWT/网关 | 未实现 |
+| 支付、核销、消息通知 | 未实现 |
+| 监控/链路追踪 | 未实现 |
+
+> 当前课程演示中数据库使用 root 账号；生产环境应为每个库创建独立账号并遵循最小权限。
+
+## 各周作业文档
+
+- [Week 01：环境与仓库](docs/homework/week-01/index.md)
+- [Week 02：项目选题](docs/homework/week-02/index.md)
+- [Week 03：Spring Boot 工程](docs/homework/week-03/index.md)
+- [Week 04：业务建模与持久化](docs/homework/week-04/index.md)
+- [Week 05：Docker 容器化](docs/homework/week-05/index.md)
+- [Week 06：微服务拆分](docs/homework/week-06/index.md)
+- [Week 07：Nacos 服务发现](docs/homework/week-07/index.md)
+
+设计文档：
+
+- [项目提案](docs/project-proposal.md)
+- [数据库设计](docs/database.md)
+- [微服务拆分设计](docs/microservices-design.md)
+
+## 历史单体版本（monolith/）
+
+`monolith/` 保留第 3–5 周的单体实现，用于对比演进，不是当前根 `compose.yaml` 的启动目标。
+
+本地运行：
+
+```bash
+cd monolith
+./mvnw spring-boot:run
+```
+
+默认端口 8080，需要本地 MySQL 的 `grocery_db`。
+
+构建镜像：
+
+```bash
+docker build -t grocery-monolith:week05 ./monolith
+```
+
+## 常见问题
+
+- **Nacos 启动失败**：检查 `.env` 的 `NACOS_AUTH_TOKEN` 是否为合法 Base64；运行 `bash scripts/init-env.sh` 重新生成。
+- **服务不在 Nacos**：Nacos 可能还没 ready，等 30 秒或 `docker compose restart order-service`。
+- **下单返回 503**：商品服务实例为空或连接失败，检查 `docker compose ps` 和 Nacos 服务列表。
+- **端口被占用**：8081–8083、18080、8848、9848 中任一端口冲突都会导致启动失败。
