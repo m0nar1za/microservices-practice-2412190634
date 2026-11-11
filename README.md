@@ -37,7 +37,7 @@ graph TD
     Client --> Product[product-service :8082]
     Client --> Order[order-service :8083]
 
-    Order -->|DiscoveryClient 查实例 + RestTemplate| Product
+    Order -->|OpenFeign + LoadBalancer| Product
 
     User --> UserDB[(user_db)]
     Product --> ProductDB[(product_db)]
@@ -53,6 +53,7 @@ graph TD
 - Java 25
 - Spring Boot 4.0.0
 - Spring Data JPA + MySQL 8.4.11
+- OpenFeign + Spring Cloud LoadBalancer
 - Spring Cloud Alibaba Nacos Discovery 2025.1.0.0
 - Spring Boot Actuator
 - Docker / Docker Compose
@@ -105,23 +106,24 @@ docker compose ps
 ```bash
 curl -s http://localhost:8081/actuator/health
 curl -s http://localhost:8082/actuator/health
+curl -s http://localhost:8092/actuator/health
 curl -s http://localhost:8083/actuator/health
 bash scripts/smoke-test.sh
 ```
 
-预期三个接口返回 `{"status":"UP"}`，脚本输出“所有检查通过”。
+预期四个接口返回 `{"status":"UP"}`（product-service 有两个实例），脚本输出“所有检查通过”。
 
 ### 5. Nacos 控制台
 
 http://127.0.0.1:18080
-账号 `nacos`，密码见 `.env` 的 `NACOS_PASSWORD`。服务列表应看到三个服务，分组 `PERSONAL_GROUP`，健康实例数各 1。
+账号 `nacos`，密码见 `.env` 的 `NACOS_PASSWORD`。服务列表应看到三个服务，分组 `PERSONAL_GROUP`；user-service、order-service 各 1 个实例，product-service 有 2 个实例。
 
 ## 核心业务流程
 
 1. 客户端 `POST /api/orders`，请求体包含 `userId`、`productId`、`quantity`。
-2. order-service 通过 `DiscoveryClient.getInstances("product-service")` 获取当前实例。
+2. order-service 通过 OpenFeign 按服务名 `product-service` 调用，Nacos + LoadBalancer 选择实例。
 3. 实例列表为空 → 返回 `503`。
-4. 取实例 URI，`PUT /api/products/{id}/deduct?quantity=...` 调用商品服务。
+4. LoadBalancer 选中实例后，请求 `PUT /api/products/{id}/deduct?quantity=...`。
 5. 商品不存在 → `404`；库存不足 → `409`；扣减成功 → `200`。
 6. order-service 保存订单，返回 `201`。
 
@@ -160,13 +162,13 @@ curl -i -X POST http://localhost:8083/api/orders \
   -H "Content-Type: application/json" \
   -d '{"userId":1,"productId":1,"quantity":100}'
 
-# 503：停掉 product-service，等 Nacos 摘除实例后再下单
-docker compose stop product-service
+# 503：停掉两个 product-service 实例，等 Nacos 摘除后再下单
+docker compose stop product-service product-service-2
 sleep 15
 curl -i -X POST http://localhost:8083/api/orders \
   -H "Content-Type: application/json" \
   -d '{"userId":1,"productId":1,"quantity":2}'
-docker compose start product-service
+docker compose start product-service product-service-2
 ```
 
 ## 测试
@@ -183,7 +185,7 @@ cd ../product-service && ./mvnw test
 
 - 上下文加载
 - 订单库存校验
-- `DiscoveryClient` 实例列表为空 → 503
+- OpenFeign 调用成功、404、409、503
 
 ## 设计说明
 
@@ -201,7 +203,7 @@ cd ../product-service && ./mvnw test
 
 ### 服务发现
 
-order-service 每次下单通过 `DiscoveryClient.getInstances("product-service")` 获取实例列表，用实例 URI 调用商品服务的原业务路径；列表为空返回 503。服务地址、数据库连接、Nacos 凭据都通过环境变量注入。
+order-service 通过 OpenFeign 声明 `ProductClient`，按服务名 `product-service` 调用商品服务；Nacos 提供实例列表，Spring Cloud LoadBalancer 在多个实例之间轮询。连接失败、超时或实例不可用时返回 503。服务地址、数据库连接、Nacos 凭据都通过环境变量注入。
 
 ## 当前实现范围
 
@@ -210,10 +212,10 @@ order-service 每次下单通过 `DiscoveryClient.getInstances("product-service"
 | 三服务拆分、独立数据库 | 已完成 |
 | Nacos 注册与发现 | 已完成 |
 | 下单扣库存、404/409/503 | 已完成 |
-| RestTemplate 连接/读取超时 | 已完成 |
+| OpenFeign 服务调用、连接/读取超时 | 已完成 |
 | Docker Compose 一键启动 | 已完成 |
 | 冒烟脚本、H2 测试 | 已完成 |
-| 客户端负载均衡 | 未实现 |
+| 多实例 product-service、客户端负载均衡 | 已完成 |
 | 分布式事务/最终一致性 | 未实现 |
 | 认证/JWT/网关 | 未实现 |
 | 支付、核销、消息通知 | 未实现 |
@@ -230,12 +232,26 @@ order-service 每次下单通过 `DiscoveryClient.getInstances("product-service"
 - [Week 05：Docker 容器化](docs/homework/week-05/index.md)
 - [Week 06：微服务拆分](docs/homework/week-06/index.md)
 - [Week 07：Nacos 服务发现](docs/homework/week-07/index.md)
+- [Week 08：服务通信与负载均衡](docs/homework/week-08/index.md)
 
 设计文档：
 
 - [项目提案](docs/project-proposal.md)
 - [数据库设计](docs/database.md)
 - [微服务拆分设计](docs/microservices-design.md)
+
+## Week 08 服务通信与负载均衡
+
+订单服务使用 OpenFeign 调用商品服务，按服务名 `product-service` 发现实例；`compose.yaml` 启动两个商品服务实例（8082 / 8092），由 Spring Cloud LoadBalancer 轮询。
+
+启动与验证：
+
+```bash
+docker compose up -d --build
+bash scripts/e2e-test.sh
+```
+
+脚本会验证：20 次下单命中两个商品实例、404/409/503 错误、依赖不可用时订单数不增加、恢复后重新返回 201。详细说明见 [服务通信设计](docs/service-communication.md)。
 
 ## 历史单体版本（monolith/）
 

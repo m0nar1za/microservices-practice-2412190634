@@ -3,6 +3,7 @@ name: grocery-microservices
 services:
   nacos:
     image: nacos/nacos-server:v3.2.4
+    restart: unless-stopped
     environment:
       - MODE=standalone
       - NACOS_AUTH_ENABLE=true
@@ -62,6 +63,7 @@ services:
 
   user-service:
     build: ./services/user-service
+    restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
@@ -79,11 +81,37 @@ services:
     networks:
       - grocery-net
 
+  # 商品服务实例 1：宿主机 8082，容器内 8082
   product-service:
     build: ./services/product-service
+    restart: unless-stopped
     ports:
       - "8082:8082"
     environment:
+      INSTANCE_ID: product-1
+      DB_URL: jdbc:mysql://product-db:3306/product_db
+      DB_USER: root
+      DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_USERNAME: nacos
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+    depends_on:
+      product-db:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    networks:
+      - grocery-net
+
+  # 商品服务实例 2：宿主机 8092，容器内仍是 8082
+  # 两个实例注册到 Nacos 的同一个服务名 product-service，供 OpenFeign 负载均衡
+  product-service-2:
+    build: ./services/product-service
+    restart: unless-stopped
+    ports:
+      - "8092:8082"
+    environment:
+      INSTANCE_ID: product-2
       DB_URL: jdbc:mysql://product-db:3306/product_db
       DB_USER: root
       DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
@@ -100,6 +128,7 @@ services:
 
   order-service:
     build: ./services/order-service
+    restart: unless-stopped
     ports:
       - "8083:8083"
     environment:
